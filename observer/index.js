@@ -1,6 +1,9 @@
 require('dotenv').config( {silent : process.env.NODE_ENV === "production"} );
-const debug = require('debug')('index');
+const debug = require('debug')('gemini:index');
 const storage = require(`${__dirname}/storage`);
+const transfer = require(`${__dirname}/transfer`);
+
+const MAX_CONCURRENT_FUNCTIONS = process.env.MAX_CONCURRENT_FUNCTIONS || 500;
 
 const SOURCE_STORAGE = storage({
     endpoint : process.env.SOURCE_COS_ENDPOINT,
@@ -25,5 +28,53 @@ const BUCKET_PAIRINGS = SOURCE_BUCKETS.map( (bucket, idx) => {
 
 });
 
-SOURCE_STORAGE.list(BUCKET_PAIRINGS[0][0], true).then(items => debug(items))
-DESTINATION_STORAGE.list(BUCKET_PAIRINGS[0][1]).then(items => debug(items))
+BUCKET_PAIRINGS.forEach(pairing => {
+
+    const OBJECTS_IN_BUCKETS = [];
+
+    OBJECTS_IN_BUCKETS.push( SOURCE_STORAGE.list(pairing[0], true ) );
+    OBJECTS_IN_BUCKETS.push( DESTINATION_STORAGE.list(pairing[1], true ) )
+
+    Promise.all(OBJECTS_IN_BUCKETS)
+        .then(results => {
+
+            const OBJECTS_IN_SOURCE_BUCKET = results[0];
+            const OBJECTS_IN_DESTINATION_BUCKET = results[1];
+
+            debug("Pairing:", pairing);
+            debug(OBJECTS_IN_SOURCE_BUCKET.length, OBJECTS_IN_DESTINATION_BUCKET.length, `${OBJECTS_IN_SOURCE_BUCKET.length - OBJECTS_IN_DESTINATION_BUCKET.length} objects missing from destination bucket.`);
+            
+            const LOOKUP = {}
+
+            OBJECTS_IN_DESTINATION_BUCKET.forEach(bucketObject => {
+                LOOKUP[bucketObject.Key] = bucketObject;
+            });
+
+            const FILES_TO_TRANSFER = OBJECTS_IN_SOURCE_BUCKET.filter(objectInSourceBucket => {
+
+                return !LOOKUP[objectInSourceBucket.Key];
+
+            });
+
+            FILES_TO_TRANSFER.length = MAX_CONCURRENT_FUNCTIONS;
+
+            const transfers = FILES_TO_TRANSFER.map(FILE => {
+                return transfer(FILE.Key);
+            });
+
+            return Promise.all(transfers)
+                .then(results => {
+                    debug(results);
+                })
+                .catch(err => {
+                    debug('err:', err);
+                })
+            ;
+
+        })
+        .catch(err => {
+            debug(err);
+        })
+    ;
+
+});

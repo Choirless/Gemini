@@ -30,51 +30,57 @@ const BUCKET_PAIRINGS = SOURCE_BUCKETS.map( (bucket, idx) => {
 
 BUCKET_PAIRINGS.forEach(pairing => {
 
-    const OBJECTS_IN_BUCKETS = [];
+    setInterval(function(){
+        console.log(pairing);
+        
+        const OBJECTS_IN_BUCKETS = [];
+    
+        OBJECTS_IN_BUCKETS.push( SOURCE_STORAGE.list(pairing[0], true ) );
+        OBJECTS_IN_BUCKETS.push( DESTINATION_STORAGE.list(pairing[1], true ) )
+    
+        Promise.all(OBJECTS_IN_BUCKETS)
+            .then(results => {
+    
+                const OBJECTS_IN_SOURCE_BUCKET = results[0];
+                const OBJECTS_IN_DESTINATION_BUCKET = results[1];
+    
+                debug("Pairing:", pairing);
+                debug(OBJECTS_IN_SOURCE_BUCKET.length, OBJECTS_IN_DESTINATION_BUCKET.length, `${OBJECTS_IN_SOURCE_BUCKET.length - OBJECTS_IN_DESTINATION_BUCKET.length} objects missing from destination bucket.`);
+                
+                const LOOKUP = {}
+    
+                OBJECTS_IN_DESTINATION_BUCKET.forEach(bucketObject => {
+                    LOOKUP[bucketObject.Key] = bucketObject;
+                });
+    
+                const FILES_TO_TRANSFER = OBJECTS_IN_SOURCE_BUCKET.filter(objectInSourceBucket => {
+    
+                    return !LOOKUP[objectInSourceBucket.Key];
+    
+                });
+    
+                FILES_TO_TRANSFER.length = MAX_CONCURRENT_FUNCTIONS;
+    
+                const transfers = FILES_TO_TRANSFER.map(FILE => {
+                    return transfer(FILE.Key, pairing[0], pairing[1]);
+                });
+    
+                return Promise.all(transfers)
+                    .then(results => {
+                        debug(results);
+                    })
+                    .catch(err => {
+                        debug('err:', err);
+                    })
+                ;
+    
+            })
+            .catch(err => {
+                debug(err);
+            })
+        ;
 
-    OBJECTS_IN_BUCKETS.push( SOURCE_STORAGE.list(pairing[0], true ) );
-    OBJECTS_IN_BUCKETS.push( DESTINATION_STORAGE.list(pairing[1], true ) )
+    }, 20 * 1000);
 
-    Promise.all(OBJECTS_IN_BUCKETS)
-        .then(results => {
-
-            const OBJECTS_IN_SOURCE_BUCKET = results[0];
-            const OBJECTS_IN_DESTINATION_BUCKET = results[1];
-
-            debug("Pairing:", pairing);
-            debug(OBJECTS_IN_SOURCE_BUCKET.length, OBJECTS_IN_DESTINATION_BUCKET.length, `${OBJECTS_IN_SOURCE_BUCKET.length - OBJECTS_IN_DESTINATION_BUCKET.length} objects missing from destination bucket.`);
-            
-            const LOOKUP = {}
-
-            OBJECTS_IN_DESTINATION_BUCKET.forEach(bucketObject => {
-                LOOKUP[bucketObject.Key] = bucketObject;
-            });
-
-            const FILES_TO_TRANSFER = OBJECTS_IN_SOURCE_BUCKET.filter(objectInSourceBucket => {
-
-                return !LOOKUP[objectInSourceBucket.Key];
-
-            });
-
-            FILES_TO_TRANSFER.length = MAX_CONCURRENT_FUNCTIONS;
-
-            const transfers = FILES_TO_TRANSFER.map(FILE => {
-                return transfer(FILE.Key);
-            });
-
-            return Promise.all(transfers)
-                .then(results => {
-                    debug(results);
-                })
-                .catch(err => {
-                    debug('err:', err);
-                })
-            ;
-
-        })
-        .catch(err => {
-            debug(err);
-        })
-    ;
 
 });

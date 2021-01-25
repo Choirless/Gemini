@@ -1,0 +1,17 @@
+{
+  "name": "mover",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile-docker": "rm -rf ./node_modules/* && docker run -it -v \"$(pwd):/usr/src/app\" nodesource/trusty:6.7 /usr/src/app/prepare.sh",
+    "package": "zip -r action.zip * -x \".env\" -x \".git\" -x \"test/*\" -x \"invoke.js\" -x \"-x \"params.json\"\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.831.0",
+    "ibm-cos-sdk": "^1.9.0"
+  }
+}

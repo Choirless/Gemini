@@ -2,7 +2,6 @@
 const storage = require(`${__dirname}/storage`);
 
 function main(params){
-    console.log(params);
 
     if(params.FN_SECRET === params.USER_SECRET){
         

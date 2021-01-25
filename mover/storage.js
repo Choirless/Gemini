@@ -1,5 +1,5 @@
 
-const debug = require('debug')('bin:lib:storage');
+//const debug = require('debug')('bin:lib:storage');
 const AWS = require('aws-sdk');
 
 const instatiate = ( function( config = {} ){
@@ -113,7 +113,7 @@ const instatiate = ( function( config = {} ){
     function listObjectsInS3Bucket(bucket, getAll = false, previouslyRetrievedKeys = [], nextMarker){
         return new Promise( (resolve, reject) => {
             
-            debug("Listing objects with marker:", nextMarker);
+            //debug("Listing objects with marker:", nextMarker);
 
             S3.listObjects({
                 Bucket : bucket,
@@ -155,7 +155,7 @@ const instatiate = ( function( config = {} ){
             }, function(err, data) {
     
                 if(err){
-                    debug('Delete object err:', err);
+                    //debug('Delete object err:', err);
                     reject(err);
                 } else {
                     resolve();
@@ -183,7 +183,7 @@ const instatiate = ( function( config = {} ){
                 }, function(err, data) {
         
                     if(err){
-                        debug('Delete object(s) err:', err);
+                        //debug('Delete object(s) err:', err);
                         reject(err);
                     } else {
                         resolve();
